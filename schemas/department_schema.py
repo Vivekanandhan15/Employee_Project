@@ -1,3 +1,4 @@
+from uuid import UUID
 from pydantic import BaseModel
 
 
@@ -6,7 +7,7 @@ class DepartmentCreate(BaseModel):
 
 
 class DepartmentResponse(BaseModel):
-    dept_id: str
+    dept_id: UUID
     dept_name: str
 
     class Config:
