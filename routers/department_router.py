@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends
+from typing import List
+
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from database.database import get_db
-from schemas.department_schema import DepartmentCreate
+from schemas.department_schema import DepartmentCreate, DepartmentResponse
 from services.department_service import DepartmentService
 
 router = APIRouter(
@@ -11,7 +13,7 @@ router = APIRouter(
 )
 
 
-@router.post("/")
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=DepartmentResponse)
 def create_department(
     payload: DepartmentCreate,
     db: Session = Depends(get_db)
@@ -19,14 +21,14 @@ def create_department(
     return DepartmentService.create_department(payload, db)
 
 
-@router.get("/")
+@router.get("/", response_model=List[DepartmentResponse])
 def get_all_departments(
     db: Session = Depends(get_db)
 ):
     return DepartmentService.get_all_departments(db)
 
 
-@router.get("/{dept_id}")
+@router.get("/{dept_id}", response_model=DepartmentResponse)
 def get_department_by_id(
     dept_id: str,
     db: Session = Depends(get_db)

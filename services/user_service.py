@@ -22,8 +22,11 @@ class UserService:
             )
 
         user = User(
-            name=payload.name,
-            email=payload.email
+            first_name=payload.first_name,
+            last_name=payload.last_name,
+            email = payload.email,
+            password = payload.password,
+            phone = payload.phone
         )
 
         db.add(user)
@@ -83,8 +86,12 @@ class UserService:
                 detail="Email already exists"
             )
 
-        user.name = payload.name
+        user.first_name = payload.first_name
+        user.last_name = payload.last_name
         user.email = payload.email
+        user.password = payload.password
+        user.phone=payload.phone
+
 
         db.commit()
         db.refresh(user)

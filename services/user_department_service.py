@@ -23,15 +23,33 @@ class UserDepartmentService:
         )
 
         if not users:
+            missing_user_ids = ", ".join(str(uid) for uid in payload.user_ids)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Users not found"
+                detail=f"Users not found: {missing_user_ids}"
             )
 
         if not departments:
+            missing_department_ids = ", ".join(str(uid) for uid in payload.department_ids)
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Departments not found"
+                detail=f"Departments not found: {missing_department_ids}"
+            )
+
+        found_user_ids = {user.user_id for user in users}
+        missing_user_ids = [str(uid) for uid in payload.user_ids if uid not in found_user_ids]
+        if missing_user_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Users not found: {', '.join(missing_user_ids)}"
+            )
+
+        found_department_ids = {department.dept_id for department in departments}
+        missing_department_ids = [str(uid) for uid in payload.department_ids if uid not in found_department_ids]
+        if missing_department_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Departments not found: {', '.join(missing_department_ids)}"
             )
 
         for user in users:
@@ -63,8 +81,14 @@ class UserDepartmentService:
 
         return {
             "user_id": user.user_id,
-            "name": user.name,
-            "departments": user.departments
+            "name": f"{user.first_name} {user.last_name}",
+            "departments": [
+                {
+                    "dept_id": department.dept_id,
+                    "dept_name": department.dept_name
+                }
+                for department in user.departments
+            ]
         }
 
     @staticmethod
@@ -126,5 +150,14 @@ class UserDepartmentService:
         return {
             "dept_id": department.dept_id,
             "dept_name": department.dept_name,
-            "users": department.users
+            "users": [
+                {
+                    "user_id": user.user_id,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "email": user.email,
+                    "phone": user.phone
+                }
+                for user in department.users
+            ]
         }

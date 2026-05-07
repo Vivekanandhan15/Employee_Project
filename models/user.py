@@ -17,7 +17,8 @@ class User(Base):
         default=uuid.uuid4
     )
 
-    name = Column(String(100), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
 
     email = Column(
         String(150),
@@ -25,8 +26,24 @@ class User(Base):
         nullable=False
     )
 
+    password = Column(String, nullable=False)
+
+    phone = Column(
+        String(15),
+        unique=True,
+        nullable=False
+    )
+
+    # MANY TO MANY
     departments = relationship(
         "Department",
         secondary=user_department,
         back_populates="users"
+    )
+
+    # ONE TO MANY
+    addresses = relationship(
+        "Address",
+        back_populates="user",
+        cascade="all, delete-orphan"
     )
