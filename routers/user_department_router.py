@@ -22,24 +22,24 @@ def assign_users_departments(
 
 
 @router.get("/user/{user_id}")
-def get_user_departments(
+async def get_user_departments(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return UserDepartmentService.get_user_departments(
+    return await UserDepartmentService.get_user_departments(
         user_id,
         db
     )
 
 
 @router.get("/department/{dept_id}")
-def get_department_users(
+async def get_department_users(
     dept_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return UserDepartmentService.get_department_users(
+    return await UserDepartmentService.get_department_users(
         dept_id,
         db
     )

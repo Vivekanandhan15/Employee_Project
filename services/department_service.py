@@ -1,7 +1,9 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+import asyncio
 
 from models.department import Department
+from services.cache_service import CacheService
 
 
 class DepartmentService:
@@ -29,15 +31,44 @@ class DepartmentService:
         db.commit()
         db.refresh(department)
 
+        # Invalidate cache for all departments
+        asyncio.create_task(CacheService.invalidate_department_cache())
+
         return department
 
     @staticmethod
-    def get_all_departments(db: Session):
-        return db.query(Department).all()
+    async def get_all_departments(db: Session):
+        # Try to get from cache first
+        cached_departments = await CacheService.get_cached_all_departments()
+        if cached_departments:
+            return cached_departments
+
+        # If not in cache, get from DB
+        departments = db.query(Department).all()
+
+        # Convert to dict for caching
+        departments_data = [
+            {
+                "dept_id": str(department.dept_id),
+                "dept_name": department.dept_name
+            }
+            for department in departments
+        ]
+
+        # Cache the result
+        await CacheService.set_cached_all_departments(departments_data)
+
+        return departments_data
 
     @staticmethod
-    def get_department_by_id(dept_id, db: Session):
+    async def get_department_by_id(dept_id, db: Session):
 
+        # Try to get from cache first
+        cached_department = await CacheService.get_cached_department(dept_id)
+        if cached_department:
+            return cached_department
+
+        # If not in cache, get from DB
         department = (
             db.query(Department)
             .filter(Department.dept_id == dept_id)
@@ -50,7 +81,16 @@ class DepartmentService:
                 detail="Department not found"
             )
 
-        return department
+        # Convert to dict for caching
+        department_data = {
+            "dept_id": str(department.dept_id),
+            "dept_name": department.dept_name
+        }
+
+        # Cache the result
+        await CacheService.set_cached_department(dept_id, department_data)
+
+        return department_data
 
     @staticmethod
     def update_department(dept_id, payload, db: Session):
@@ -87,6 +127,9 @@ class DepartmentService:
         db.commit()
         db.refresh(department)
 
+        # Invalidate cache for this department and all departments
+        asyncio.create_task(CacheService.invalidate_department_cache(dept_id))
+
         return department
 
     @staticmethod
@@ -106,6 +149,9 @@ class DepartmentService:
 
         db.delete(department)
         db.commit()
+
+        # Invalidate cache for this department and all departments
+        asyncio.create_task(CacheService.invalidate_department_cache(dept_id))
 
         return {
             "message": "Department deleted successfully"

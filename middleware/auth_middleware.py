@@ -11,7 +11,8 @@ EXCLUDED_PATHS = {
     "/users/register",  
     "/docs",
     "/openapi.json",
-    "/redoc"
+    "/redoc",
+    "/redis-test"
 }
 
 

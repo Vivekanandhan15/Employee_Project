@@ -1,8 +1,10 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+import asyncio
 
 from models.user import User
 from models.department import Department
+from services.cache_service import CacheService
 
 
 class UserDepartmentService:
@@ -60,13 +62,25 @@ class UserDepartmentService:
 
         db.commit()
 
+        # Invalidate cache for affected users and departments
+        for user in users:
+            asyncio.create_task(CacheService.invalidate_user_department_cache(str(user.user_id)))
+        for department in departments:
+            asyncio.create_task(CacheService.invalidate_user_department_cache(None, str(department.dept_id)))
+
         return {
             "message": "Users assigned to departments successfully"
         }
 
     @staticmethod
-    def get_user_departments(user_id, db: Session):
+    async def get_user_departments(user_id, db: Session):
 
+        # Try to get from cache first
+        cached_data = await CacheService.get_cached_user_departments(user_id)
+        if cached_data:
+            return cached_data
+
+        # If not in cache, get from DB
         user = (
             db.query(User)
             .filter(User.user_id == user_id)
@@ -79,7 +93,8 @@ class UserDepartmentService:
                 detail="User not found"
             )
 
-        return {
+        # Cache the result
+        data = {
             "user_id": user.user_id,
             "name": f"{user.first_name} {user.last_name}",
             "departments": [
@@ -90,6 +105,10 @@ class UserDepartmentService:
                 for department in user.departments
             ]
         }
+
+        await CacheService.set_cached_user_departments(user_id, data)
+
+        return data
 
     @staticmethod
     def remove_user_from_department(user_id, dept_id, db: Session):
@@ -128,13 +147,22 @@ class UserDepartmentService:
 
         db.commit()
 
+        # Invalidate cache for this user and department
+        asyncio.create_task(CacheService.invalidate_user_department_cache(user_id, dept_id))
+
         return {
             "message": "User removed from department successfully"
         }
 
     @staticmethod
-    def get_department_users(dept_id, db: Session):
+    async def get_department_users(dept_id, db: Session):
 
+        # Try to get from cache first
+        cached_data = await CacheService.get_cached_department_users(dept_id)
+        if cached_data:
+            return cached_data
+
+        # If not in cache, get from DB
         department = (
             db.query(Department)
             .filter(Department.dept_id == dept_id)
@@ -147,7 +175,8 @@ class UserDepartmentService:
                 detail="Department not found"
             )
 
-        return {
+        # Cache the result
+        data = {
             "dept_id": department.dept_id,
             "dept_name": department.dept_name,
             "users": [
@@ -161,3 +190,7 @@ class UserDepartmentService:
                 for user in department.users
             ]
         }
+
+        await CacheService.set_cached_department_users(dept_id, data)
+
+        return data

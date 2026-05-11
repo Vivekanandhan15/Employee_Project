@@ -31,20 +31,20 @@ def create_user(
 
 
 @router.get("/", response_model=List[UserResponse])
-def get_all_users(
+async def get_all_users(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return UserService.get_all_users(db)
+    return await UserService.get_all_users(db)
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user_by_id(
+async def get_user_by_id(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return UserService.get_user_by_id(user_id, db)
+    return await UserService.get_user_by_id(user_id, db)
 
 
 @router.put("/{user_id}")

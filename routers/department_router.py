@@ -24,20 +24,20 @@ def create_department(
 
 
 @router.get("/", response_model=List[DepartmentResponse])
-def get_all_departments(
+async def get_all_departments(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return DepartmentService.get_all_departments(db)
+    return await DepartmentService.get_all_departments(db)
 
 
 @router.get("/{dept_id}", response_model=DepartmentResponse)
-def get_department_by_id(
+async def get_department_by_id(
     dept_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return DepartmentService.get_department_by_id(dept_id, db)
+    return await DepartmentService.get_department_by_id(dept_id, db)
 
 
 @router.put("/{dept_id}")

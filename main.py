@@ -1,3 +1,5 @@
+"""Main FastAPI application."""
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException, status
@@ -12,9 +14,13 @@ from routers.user_router import router as user_router
 from routers.department_router import router as department_router
 from routers.user_department_router import router as user_department_router
 from routers.address_router import router as address_router
+from routers.test_router import router as test_router
+from routers.cache_router import router as cache_router
 
 # Seeds
 from seeds.department_seed import seed_departments
+
+from services.background_sync_service import background_sync
 
 
 # Create all tables
@@ -22,7 +28,8 @@ Base.metadata.create_all(bind=engine)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
+    """Application lifespan events."""
 
     db = SessionLocal()
 
@@ -33,7 +40,13 @@ async def lifespan(app: FastAPI):
     finally:
         db.close()
 
+    # Start background sync service
+    background_sync.start()
+
     yield
+
+    # Stop background sync service on shutdown
+    background_sync.stop()
 
 
 app = FastAPI(
@@ -46,12 +59,12 @@ app = FastAPI(
 app.add_middleware(JWTMiddleware)
 
 
-# Global Exception Handler
 @app.exception_handler(Exception)
 async def internal_server_error_handler(
-    request: Request,
+    _: Request,
     exc: Exception
 ):
+    """Handle global application exceptions."""
 
     if isinstance(exc, HTTPException):
 
@@ -61,6 +74,7 @@ async def internal_server_error_handler(
                 "detail": exc.detail
             }
         )
+
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
@@ -68,8 +82,10 @@ async def internal_server_error_handler(
         }
     )
 
+
 @app.get("/")
 def greet():
+    """Health check endpoint."""
 
     return {
         "message": "Backend is running successfully"
@@ -82,38 +98,5 @@ app.include_router(user_router)
 app.include_router(department_router)
 app.include_router(user_department_router)
 app.include_router(address_router)
-@app.exception_handler(Exception)
-async def internal_server_error_handler(
-    request: Request,
-    exc: Exception
-):
-
-    if isinstance(exc, HTTPException):
-
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "detail": exc.detail
-            }
-        )
-    return JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "detail": "Internal server error"
-        }
-    )
-
-@app.get("/")
-def greet():
-
-    return {
-        "message": "Backend is running successfully"
-    }
-
-
-# Include Routers
-app.include_router(auth_router)
-app.include_router(user_router)
-app.include_router(department_router)
-app.include_router(user_department_router)
-app.include_router(address_router)
+app.include_router(test_router)
+app.include_router(cache_router)

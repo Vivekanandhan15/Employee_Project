@@ -1,9 +1,11 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+import asyncio
 
 from models.user import User
 from utils.security import hash_password
+from services.cache_service import CacheService
 
 
 class UserService:
@@ -49,6 +51,9 @@ class UserService:
             db.commit()
             db.refresh(user)
 
+            # Invalidate cache for all users
+            asyncio.create_task(CacheService.invalidate_user_cache())
+
             return user
 
         except IntegrityError:
@@ -60,12 +65,41 @@ class UserService:
             )
 
     @staticmethod
-    def get_all_users(db: Session):
-        return db.query(User).all()
+    async def get_all_users(db: Session):
+        # Try to get from cache first
+        cached_users = await CacheService.get_cached_all_users()
+        if cached_users:
+            return cached_users
+
+        # If not in cache, get from DB
+        users = db.query(User).all()
+
+        # Convert to dict for caching
+        users_data = [
+            {
+                "user_id": str(user.user_id),
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+                "phone": user.phone
+            }
+            for user in users
+        ]
+
+        # Cache the result
+        await CacheService.set_cached_all_users(users_data)
+
+        return users_data
 
     @staticmethod
-    def get_user_by_id(user_id, db: Session):
+    async def get_user_by_id(user_id, db: Session):
 
+        # Try to get from cache first
+        cached_user = await CacheService.get_cached_user(user_id)
+        if cached_user:
+            return cached_user
+
+        # If not in cache, get from DB
         user = (
             db.query(User)
             .filter(User.user_id == user_id)
@@ -78,7 +112,19 @@ class UserService:
                 detail="User not found"
             )
 
-        return user
+        # Convert to dict for caching
+        user_data = {
+            "user_id": str(user.user_id),
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "phone": user.phone
+        }
+
+        # Cache the result
+        await CacheService.set_cached_user(user_id, user_data)
+
+        return user_data
 
     @staticmethod
     def update_user(user_id, payload, db: Session):
@@ -136,6 +182,9 @@ class UserService:
             db.commit()
             db.refresh(user)
 
+            # Invalidate cache for this user and all users
+            asyncio.create_task(CacheService.invalidate_user_cache(user_id))
+
             return user
 
         except IntegrityError:
@@ -163,6 +212,9 @@ class UserService:
 
         db.delete(user)
         db.commit()
+
+        # Invalidate cache for this user and all users
+        asyncio.create_task(CacheService.invalidate_user_cache(user_id))
 
         return {
             "message": "User deleted successfully"
