@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from database.database import get_db
+from dependencies.auth_dependency import get_current_user
 
 from schemas.address_schema import (
     AddressCreate,
@@ -23,7 +24,8 @@ router = APIRouter(
 def create_address(
     user_id: UUID,
     payload: AddressCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     return AddressService.create_address(
         user_id,
@@ -35,7 +37,8 @@ def create_address(
 @router.get("/users/{user_id}")
 def get_user_addresses(
     user_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     return AddressService.get_user_addresses(
         user_id,
@@ -47,7 +50,8 @@ def get_user_addresses(
 def update_address(
     address_id: UUID,
     payload: AddressUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     return AddressService.update_address(
         address_id,
@@ -59,7 +63,8 @@ def update_address(
 @router.delete("/{address_id}")
 def delete_address(
     address_id: UUID,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     return AddressService.delete_address(
         address_id,

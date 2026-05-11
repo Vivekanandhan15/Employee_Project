@@ -1,7 +1,9 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from models.user import User
+from utils.security import hash_password
 
 
 class UserService:
@@ -9,31 +11,53 @@ class UserService:
     @staticmethod
     def create_user(payload, db: Session):
 
-        existing_user = (
+        existing_email = (
             db.query(User)
             .filter(User.email == payload.email)
             .first()
         )
 
-        if existing_user:
+        if existing_email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already exists"
             )
 
-        user = User(
-            first_name=payload.first_name,
-            last_name=payload.last_name,
-            email = payload.email,
-            password = payload.password,
-            phone = payload.phone
+        existing_phone = (
+            db.query(User)
+            .filter(User.phone == payload.phone)
+            .first()
         )
 
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        if existing_phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already exists"
+            )
 
-        return user
+        try:
+
+            user = User(
+                first_name=payload.first_name,
+                last_name=payload.last_name,
+                email=payload.email,
+                password=hash_password(payload.password),
+                phone=payload.phone
+            )
+
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+            return user
+
+        except IntegrityError:
+            db.rollback()
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Duplicate entry found"
+            )
 
     @staticmethod
     def get_all_users(db: Session):
@@ -71,7 +95,7 @@ class UserService:
                 detail="User not found"
             )
 
-        existing_user = (
+        existing_email = (
             db.query(User)
             .filter(
                 User.email == payload.email,
@@ -80,23 +104,47 @@ class UserService:
             .first()
         )
 
-        if existing_user:
+        if existing_email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already exists"
             )
 
-        user.first_name = payload.first_name
-        user.last_name = payload.last_name
-        user.email = payload.email
-        user.password = payload.password
-        user.phone=payload.phone
+        existing_phone = (
+            db.query(User)
+            .filter(
+                User.phone == payload.phone,
+                User.user_id != user_id
+            )
+            .first()
+        )
 
+        if existing_phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already exists"
+            )
 
-        db.commit()
-        db.refresh(user)
+        try:
 
-        return user
+            user.first_name = payload.first_name
+            user.last_name = payload.last_name
+            user.email = payload.email
+            user.password = hash_password(payload.password)
+            user.phone = payload.phone
+
+            db.commit()
+            db.refresh(user)
+
+            return user
+
+        except IntegrityError:
+            db.rollback()
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Duplicate entry found"
+            )
 
     @staticmethod
     def delete_user(user_id, db: Session):
