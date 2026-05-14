@@ -65,13 +65,12 @@ class UserService:
             )
 
     @staticmethod
-    async def get_all_users(db: Session):
-        # Try to get from cache first
-        cached_users = await CacheService.get_cached_all_users()
-        if cached_users:
-            return cached_users
+    async def get_all_users(cache_type: str, db: Session):
+        if cache_type == "hot":
+            cached_users = await CacheService.get_cached_all_users()
+            if cached_users:
+                return cached_users
 
-        # If not in cache, get from DB
         users = db.query(User).all()
 
         # Convert to dict for caching
@@ -86,7 +85,7 @@ class UserService:
             for user in users
         ]
 
-        # Cache the result
+        # Cache the result (always cache after DB fetch)
         await CacheService.set_cached_all_users(users_data)
 
         return users_data

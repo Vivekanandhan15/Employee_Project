@@ -205,6 +205,7 @@ For production deployment, consider:
 
 ### Cache Management (Admin)
 - `POST /cache/invalidate-all` - Manually clear all cache
+- `POST /cache/sync-all` - Manually trigger data sync from DB to cache
 
 ## 🔐 Authentication
 
@@ -235,8 +236,11 @@ The API uses JWT (JSON Web Tokens) for authentication:
 
 ### Cache Invalidation
 
+### Cache Invalidation
+
 - **Automatic**: Triggered on create/update/delete operations
 - **Manual**: Admin endpoint to clear all cache
+- **Manual Sync**: Admin endpoint to trigger immediate data sync
 - **Scheduled**: Background jobs refresh cache periodically
 
 ## 🔄 Background Jobs

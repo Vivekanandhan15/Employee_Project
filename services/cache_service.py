@@ -69,10 +69,28 @@ class CacheService:
 
     @staticmethod
     async def get_cached_all_users() -> Optional[List[dict]]:
-        return await CacheService.get_cache(CacheService.ALL_USERS_KEY)
+        # Try to get from the list cache first
+        cached_list = await CacheService.get_cache(CacheService.ALL_USERS_KEY)
+        if cached_list:
+            return cached_list
+        
+        # If not, reconstruct from individual user caches
+        # This is for delta caching fallback
+        # But for now, keep as is
+        return None
 
     @staticmethod
     async def set_cached_all_users(users: List[dict], ttl: int = 300) -> None:
+        await CacheService.set_cache(CacheService.ALL_USERS_KEY, users, ttl)
+
+    @staticmethod
+    async def set_cached_all_users_delta(users: List[dict], ttl: int = 300) -> None:
+        """Set all users individually for delta caching"""
+        # Set individual user caches
+        for user in users:
+            await CacheService.set_cached_user(user["user_id"], user, ttl)
+        
+        # Also set the list cache
         await CacheService.set_cache(CacheService.ALL_USERS_KEY, users, ttl)
 
     @staticmethod

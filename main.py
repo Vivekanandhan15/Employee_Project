@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from database.database import Base, engine, SessionLocal
+from database.database import Base, engine, SessionLocal, ensure_db_schema
 from middleware.auth_middleware import JWTMiddleware
 
 # Routers
@@ -23,8 +23,9 @@ from seeds.department_seed import seed_departments
 from services.background_sync_service import background_sync
 
 
-# Create all tables
+# Create all tables and ensure schema upgrades
 Base.metadata.create_all(bind=engine)
+ensure_db_schema()
 
 
 @asynccontextmanager

@@ -20,22 +20,15 @@ def register_user(payload: UserCreate, db: Session = Depends(get_db)):
     return UserService.create_user(payload, db)
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
-def create_user(
-    payload: UserCreate,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """Protected endpoint to create user (requires authentication)."""
-    return UserService.create_user(payload, db)
 
 
 @router.get("/", response_model=List[UserResponse])
 async def get_all_users(
+    cache_type: str = "hot",
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return await UserService.get_all_users(db)
+    return await UserService.get_all_users(cache_type, db)
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -68,3 +61,4 @@ def delete_user(
     current_user: dict = Depends(get_current_user)
 ):
     return UserService.delete_user(user_id, db)
+

@@ -44,7 +44,7 @@
 ┌──────────────────────────────────────────────┐
 │ USER REQUESTS PROTECTED ENDPOINT             │
 │ GET /users                                   │
-│ Header: Authorization: Bearer <token>       │
+│ Header: Authorization: Bearer <token>        │
 └──────────────────────────────────────────────┘
          ↓
 ┌──────────────────────────────────────────────┐
