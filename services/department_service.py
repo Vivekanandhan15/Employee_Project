@@ -9,7 +9,7 @@ from services.cache_service import CacheService
 class DepartmentService:
 
     @staticmethod
-    def create_department(payload, db: Session):
+    async def create_department(payload, db: Session):
 
         existing_department = (
             db.query(Department)
@@ -32,7 +32,7 @@ class DepartmentService:
         db.refresh(department)
 
         # Invalidate cache for all departments
-        asyncio.create_task(CacheService.invalidate_department_cache())
+        await CacheService.invalidate_department_cache()
 
         return department
 
@@ -93,7 +93,7 @@ class DepartmentService:
         return department_data
 
     @staticmethod
-    def update_department(dept_id, payload, db: Session):
+    async def update_department(dept_id, payload, db: Session):
 
         department = (
             db.query(Department)
@@ -128,12 +128,12 @@ class DepartmentService:
         db.refresh(department)
 
         # Invalidate cache for this department and all departments
-        asyncio.create_task(CacheService.invalidate_department_cache(dept_id))
+        await CacheService.invalidate_department_cache(dept_id)
 
         return department
 
     @staticmethod
-    def delete_department(dept_id, db: Session):
+    async def delete_department(dept_id, db: Session):
 
         department = (
             db.query(Department)
@@ -151,7 +151,7 @@ class DepartmentService:
         db.commit()
 
         # Invalidate cache for this department and all departments
-        asyncio.create_task(CacheService.invalidate_department_cache(dept_id))
+        await CacheService.invalidate_department_cache(dept_id)
 
         return {
             "message": "Department deleted successfully"

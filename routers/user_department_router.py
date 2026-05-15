@@ -13,12 +13,12 @@ router = APIRouter(
 
 
 @router.post("/")
-def assign_users_departments(
+async def assign_users_departments(
     payload: AssignDepartmentSchema,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return UserDepartmentService.assign_users_departments(payload, db)
+    return await UserDepartmentService.assign_users_departments(payload, db)
 
 
 @router.get("/user/{user_id}")
@@ -46,13 +46,13 @@ async def get_department_users(
 
 
 @router.delete("/{user_id}/{dept_id}")
-def remove_user_from_department(
+async def remove_user_from_department(
     user_id: str,
     dept_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return UserDepartmentService.remove_user_from_department(
+    return await UserDepartmentService.remove_user_from_department(
         user_id,
         dept_id,
         db

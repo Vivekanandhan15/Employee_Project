@@ -15,9 +15,9 @@ router = APIRouter(
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
-def register_user(payload: UserCreate, db: Session = Depends(get_db)):
+async def register_user(payload: UserCreate, db: Session = Depends(get_db)):
     """Public endpoint to register a new user (no authentication required)."""
-    return UserService.create_user(payload, db)
+    return await UserService.create_user(payload, db)
 
 
 
@@ -34,20 +34,21 @@ async def get_all_users(
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user_by_id(
     user_id: str,
+    cache_type: str = "cold",
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return await UserService.get_user_by_id(user_id, db)
+    return await UserService.get_user_by_id(user_id, cache_type, db)
 
 
 @router.put("/{user_id}")
-def update_user(
+async def update_user(
     user_id: str,
     payload: UserCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return UserService.update_user(
+    return await UserService.update_user(
         user_id,
         payload,
         db
@@ -55,10 +56,10 @@ def update_user(
 
 
 @router.delete("/{user_id}")
-def delete_user(
+async def delete_user(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return UserService.delete_user(user_id, db)
+    return await UserService.delete_user(user_id, db)
 

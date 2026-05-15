@@ -1,17 +1,33 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-import asyncio
+import logging
 
 from models.user import User
 from utils.security import hash_password
 from services.cache_service import CacheService
 
 
+logger = logging.getLogger(__name__)
+
+
 class UserService:
 
     @staticmethod
-    def create_user(payload, db: Session):
+    def serialize_user(user: User):
+        return {
+            "user_id": str(user.user_id),
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "phone": user.phone
+        }
+
+    # =========================================================
+    # CREATE USER
+    # =========================================================
+    @staticmethod
+    async def create_user(payload, db: Session):
 
         existing_email = (
             db.query(User)
@@ -51,12 +67,15 @@ class UserService:
             db.commit()
             db.refresh(user)
 
-            # Invalidate cache for all users
-            asyncio.create_task(CacheService.invalidate_user_cache())
+            # Invalidate Redis cache only
+            await CacheService.invalidate_user_cache()
 
-            return user
+            logger.info("User created and cache invalidated")
+
+            return UserService.serialize_user(user)
 
         except IntegrityError:
+
             db.rollback()
 
             raise HTTPException(
@@ -64,41 +83,60 @@ class UserService:
                 detail="Duplicate entry found"
             )
 
+    # =========================================================
+    # GET ALL USERS
+    # =========================================================
     @staticmethod
     async def get_all_users(cache_type: str, db: Session):
+
+        # HOT PATH -> REDIS ONLY
         if cache_type == "hot":
+
             cached_users = await CacheService.get_cached_all_users()
+
             if cached_users:
+                logger.info("CACHE HIT -> ALL USERS")
                 return cached_users
 
+            logger.info("CACHE MISS -> ALL USERS")
+
+            return []
+
+        # COLD PATH -> POSTGRES ONLY
         users = db.query(User).all()
 
-        # Convert to dict for caching
+        logger.info("FETCHED ALL USERS FROM POSTGRES")
+
         users_data = [
-            {
-                "user_id": str(user.user_id),
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "email": user.email,
-                "phone": user.phone
-            }
+            UserService.serialize_user(user)
             for user in users
         ]
 
-        # Cache the result (always cache after DB fetch)
-        await CacheService.set_cached_all_users(users_data)
-
         return users_data
 
+    # =========================================================
+    # GET USER BY ID
+    # =========================================================
     @staticmethod
-    async def get_user_by_id(user_id, db: Session):
+    async def get_user_by_id(user_id, cache_type: str, db: Session):
 
-        # Try to get from cache first
-        cached_user = await CacheService.get_cached_user(user_id)
-        if cached_user:
-            return cached_user
+        # HOT PATH -> REDIS ONLY
+        if cache_type == "hot":
 
-        # If not in cache, get from DB
+            cached_user = await CacheService.get_cached_user(user_id)
+
+            if cached_user:
+                logger.info(f"CACHE HIT -> USER {user_id}")
+                return cached_user
+
+            logger.info(f"CACHE MISS -> USER {user_id}")
+
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No hot cache available"
+            )
+
+        # COLD PATH -> POSTGRES ONLY
         user = (
             db.query(User)
             .filter(User.user_id == user_id)
@@ -111,22 +149,15 @@ class UserService:
                 detail="User not found"
             )
 
-        # Convert to dict for caching
-        user_data = {
-            "user_id": str(user.user_id),
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "email": user.email,
-            "phone": user.phone
-        }
+        logger.info(f"FETCHED USER {user_id} FROM POSTGRES")
 
-        # Cache the result
-        await CacheService.set_cached_user(user_id, user_data)
+        return UserService.serialize_user(user)
 
-        return user_data
-
+    # =========================================================
+    # UPDATE USER
+    # =========================================================
     @staticmethod
-    def update_user(user_id, payload, db: Session):
+    async def update_user(user_id, payload, db: Session):
 
         user = (
             db.query(User)
@@ -181,12 +212,15 @@ class UserService:
             db.commit()
             db.refresh(user)
 
-            # Invalidate cache for this user and all users
-            asyncio.create_task(CacheService.invalidate_user_cache(user_id))
+            # Invalidate Redis cache only
+            await CacheService.invalidate_user_cache(user_id)
 
-            return user
+            logger.info(f"User {user_id} updated and cache invalidated")
+
+            return UserService.serialize_user(user)
 
         except IntegrityError:
+
             db.rollback()
 
             raise HTTPException(
@@ -194,8 +228,11 @@ class UserService:
                 detail="Duplicate entry found"
             )
 
+    # =========================================================
+    # DELETE USER
+    # =========================================================
     @staticmethod
-    def delete_user(user_id, db: Session):
+    async def delete_user(user_id, db: Session):
 
         user = (
             db.query(User)
@@ -212,8 +249,10 @@ class UserService:
         db.delete(user)
         db.commit()
 
-        # Invalidate cache for this user and all users
-        asyncio.create_task(CacheService.invalidate_user_cache(user_id))
+        # Invalidate Redis cache only
+        await CacheService.invalidate_user_cache(user_id)
+
+        logger.info(f"User {user_id} deleted and cache invalidated")
 
         return {
             "message": "User deleted successfully"

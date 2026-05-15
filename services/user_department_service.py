@@ -10,7 +10,7 @@ from services.cache_service import CacheService
 class UserDepartmentService:
 
     @staticmethod
-    def assign_users_departments(payload, db: Session):
+    async def assign_users_departments(payload, db: Session):
 
         users = (
             db.query(User)
@@ -64,9 +64,9 @@ class UserDepartmentService:
 
         # Invalidate cache for affected users and departments
         for user in users:
-            asyncio.create_task(CacheService.invalidate_user_department_cache(str(user.user_id)))
+            await CacheService.invalidate_user_department_cache(str(user.user_id))
         for department in departments:
-            asyncio.create_task(CacheService.invalidate_user_department_cache(None, str(department.dept_id)))
+            await CacheService.invalidate_user_department_cache(None, str(department.dept_id))
 
         return {
             "message": "Users assigned to departments successfully"
@@ -93,13 +93,13 @@ class UserDepartmentService:
                 detail="User not found"
             )
 
-        # Cache the result
+        # Cache the result (convert UUIDs to strings for JSON serialization)
         data = {
-            "user_id": user.user_id,
+            "user_id": str(user.user_id),
             "name": f"{user.first_name} {user.last_name}",
             "departments": [
                 {
-                    "dept_id": department.dept_id,
+                    "dept_id": str(department.dept_id),
                     "dept_name": department.dept_name
                 }
                 for department in user.departments
@@ -111,7 +111,7 @@ class UserDepartmentService:
         return data
 
     @staticmethod
-    def remove_user_from_department(user_id, dept_id, db: Session):
+    async def remove_user_from_department(user_id, dept_id, db: Session):
 
         user = (
             db.query(User)
@@ -148,7 +148,7 @@ class UserDepartmentService:
         db.commit()
 
         # Invalidate cache for this user and department
-        asyncio.create_task(CacheService.invalidate_user_department_cache(user_id, dept_id))
+        await CacheService.invalidate_user_department_cache(user_id, dept_id)
 
         return {
             "message": "User removed from department successfully"
@@ -175,13 +175,13 @@ class UserDepartmentService:
                 detail="Department not found"
             )
 
-        # Cache the result
+        # Cache the result (stringify UUIDs so JSON serialization succeeds)
         data = {
-            "dept_id": department.dept_id,
+            "dept_id": str(department.dept_id),
             "dept_name": department.dept_name,
             "users": [
                 {
-                    "user_id": user.user_id,
+                    "user_id": str(user.user_id),
                     "first_name": user.first_name,
                     "last_name": user.last_name,
                     "email": user.email,

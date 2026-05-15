@@ -15,12 +15,12 @@ router = APIRouter(
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=DepartmentResponse)
-def create_department(
+async def create_department(
     payload: DepartmentCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return DepartmentService.create_department(payload, db)
+    return await DepartmentService.create_department(payload, db)
 
 
 @router.get("/", response_model=List[DepartmentResponse])
@@ -41,13 +41,13 @@ async def get_department_by_id(
 
 
 @router.put("/{dept_id}")
-def update_department(
+async def update_department(
     dept_id: str,
     payload: DepartmentCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return DepartmentService.update_department(
+    return await DepartmentService.update_department(
         dept_id,
         payload,
         db
@@ -55,9 +55,9 @@ def update_department(
 
 
 @router.delete("/{dept_id}")
-def delete_department(
+async def delete_department(
     dept_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    return DepartmentService.delete_department(dept_id, db)
+    return await DepartmentService.delete_department(dept_id, db)

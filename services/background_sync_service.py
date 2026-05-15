@@ -67,13 +67,11 @@ class BackgroundSyncService:
             now = datetime.now(timezone.utc)
 
             if self.last_sync_users is None:
-                # First sync, do full sync
                 logger.info("First sync, doing full user sync")
                 users = db.query(User).all()
                 changed_users = users
                 is_full_sync = True
             else:
-                # Delta sync: get users updated since last sync
                 logger.info("Delta sync, getting users updated since %s", self.last_sync_users)
                 users = db.query(User).filter(User.updated_at > self.last_sync_users).all()
                 changed_users = users
@@ -83,7 +81,7 @@ class BackgroundSyncService:
                 logger.info("No changed users, skipping sync")
                 return
 
-            # Convert changed users to dict
+
             changed_users_data = [
                 {
                     "user_id": str(user.user_id),
@@ -117,19 +115,14 @@ class BackgroundSyncService:
                 await CacheService.set_cached_all_users(all_users_data, ttl=settings.CACHE_TTL_SECONDS)
                 logger.info("Set full all_users cache with %d users", len(all_users_data))
             else:
-                # Update the list with changed users
                 updated_all_users = current_all_users.copy()
                 changed_ids = {user["user_id"] for user in changed_users_data}
                 
-                # Remove old entries for changed users
                 updated_all_users = [u for u in updated_all_users if u["user_id"] not in changed_ids]
                 
-                # Add updated/new entries
                 updated_all_users.extend(changed_users_data)
                 
-                # Note: This doesn't handle deletions, as we don't know which users were deleted
-                # Deletions are handled by invalidation in user_service
-                
+
                 await CacheService.set_cached_all_users(updated_all_users, ttl=settings.CACHE_TTL_SECONDS)
                 logger.info("Updated all_users cache with %d changed users", len(changed_users_data))
 
